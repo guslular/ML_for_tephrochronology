@@ -8,7 +8,6 @@ import pandas as pd
 import time
 from collections import defaultdict
 import numpy as np
-from matplotlib.ticker import FormatStrFormatter
 
 from matplotlib import pyplot as plt
 import seaborn as sns
@@ -33,9 +32,6 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import RobustScaler, StandardScaler, Normalizer, OrdinalEncoder, MinMaxScaler
 from sklearn.model_selection import RandomizedSearchCV
-
-# In[2]:
-
 
 def reduce_mem_usage(df):
     """ iterate through all the columns of a dataframe and modify the data type
@@ -86,7 +82,6 @@ def print_confusion_matrix(confusion_matrix, class_names, figsize = (16,9), font
     
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
-#     os.mkdir('confusion')
     if modelname:
         plt.savefig('tephra_results/confusionMatrices/'+modelname+"cm-5f.svg")
     return fig
@@ -97,7 +92,7 @@ def print_probability_matrix(confusion_matrix, class_names, figsize = (70,50), f
         confusion_matrix, index=range(0,len(confusion_matrix)), columns=class_names, 
     )
     if modelname:
-        df_cm.to_csv('tephra_results/TestProbs/'+modelname+"_test_probabilities.csv")
+        df_cm.to_csv('tephra_results/TestProbs/modelname+'_test_probabilities.csv')
     fig = plt.figure(figsize=figsize)
     try:
         heatmap = sns.heatmap(df_cm, annot=True)
@@ -126,16 +121,12 @@ def eval_test(model, modelname):
     return preds, modelname, train, predict
 
 
-# In[3]:
-
-
 tuned_models = dict()
 
 tuned_models['xgb'] = {
 "colsample_bytree": 0.49346938775510206,
 "learning_rate": 0.12199931486297749,
 "max_depth": 7,
-# 'num_leaves': (2**7)-1,
 'eval_metric':'merror',
 'use_label_encoder':False,
 "n_estimators": 250,
@@ -144,7 +135,6 @@ tuned_models['xgb'] = {
 "reg_alpha": 0.34897959183673464,
 "reg_lambda": 0.8387755102040816,
 "subsample": 0.8122448979591836,
-    #8123
 }
 
 tuned_models['lgb'] = {
@@ -157,7 +147,6 @@ tuned_models['lgb'] = {
 'learning_rate': 0.08633904519421778,
 'colsample_bytree': 0.54,
 'boosting_type': 'gbdt'
-#8160
 }
 tuned_models['rfc'] = {
     "criterion": 'gini',
@@ -187,16 +176,9 @@ tuned_models['cat'] = {
 }
 tuned_models["svm"] = {"probability": False, "gamma": 0.00001, "C": 10000, "random_state":13}
 tuned_models["svmp"] = {"probability": True, "gamma": 0.00001, "C": 10000, "random_state":13}
-tuned_models["knn"] = {"n_neighbors": 8} 
+tuned_models["knn"] = {"n_neighbors": 3} 
 tuned_models["lda"] = {"tol": 0.0001, "solver": "svd"}
 tuned_models["ann"] = {"solver": "adam", "max_iter": 1000, "learning_rate": "adaptive", "hidden_layer_sizes": [100], "alpha": 0.0001, "activation": "tanh"}
-
-
-def newListRemove(element, list):
-  list.remove(element)
-  return list
-
-# In[4]:
 
 
 RFC = Pipeline([('scaler', RobustScaler()),
@@ -218,7 +200,19 @@ CAT = Pipeline([('scaler', RobustScaler()),
 
 VTC = Pipeline([('scaler', RobustScaler()), 
                 ('Voting', VotingClassifier(estimators=[('CAT', CAT), ('xgb', XGB), ('LGB', LGB)], voting='soft'))])
-            
+
+VTC2 = Pipeline([('scaler', RobustScaler()), 
+                ('Voting', VotingClassifier(estimators=[('RFC', RFC), ('XGB', XGB), ('LGB', LGB)], voting='soft'))])
+
+VTC3 = Pipeline([('scaler', RobustScaler()), 
+                ('Voting', VotingClassifier(estimators=[('XGB', XGB), ('LGB', LGB)], voting='soft'))])
+
+VTC4 = Pipeline([('scaler', RobustScaler()), 
+                ('Voting', VotingClassifier(estimators=[('LGB', LGB), ('CAT', CAT)], voting='soft'))])
+
+VTC5 = Pipeline([('scaler', RobustScaler()), 
+                ('Voting', VotingClassifier(estimators=[('RFC', RFC), ('CAT', CAT)], voting='soft'))])
+             
 KNN = Pipeline([('scaler', RobustScaler()),
                ('KNN', KNeighborsClassifier(**tuned_models["knn"]))])  
 
@@ -230,8 +224,6 @@ MLP = Pipeline([('scaler', RobustScaler()),
 
 LDA = Pipeline([('scaler', RobustScaler()),
                ('LDA', LinearDiscriminantAnalysis(**tuned_models["lda"]))])     
-
-# In[5]:
 
 
 def get_models():
@@ -274,14 +266,12 @@ def get_models():
 
 if __name__ == "__main__":
     print("####### PROCESSING DATA #######\n")
-#     trfdct = {'AEGINA':0,'ANTIPAROS':1,'CHIOS':2,'CHRISTIANA ISLANDS':3,'KIMOLOS':4,'KOS':5,'LESBOS':6,'LICHADES ISLANDS':7,'LIMNOS (LEMNOS)':8,'METHANA':9,'MILOS':10,'NISYROS':11,'NWAVA':12,'PAROS':13,'PATMOS':14,'SAMOS':15,'SANTORINI':16,'YALI':17}
     trfdct = {'AEGINA':0,'ANTIPAROS':1,'KOS':2,'METHANA':3,'MILOS':4,'NISYROS':5,'SANTORINI':6,'YALI':7}
     train = pd.read_excel('preprocessed_train2.xls')
     test = pd.read_excel('preprocessed_test1.xls')
     train.drop('Unnamed: 0', axis=1, inplace=True)
     test.drop('Unnamed: 0', axis=1, inplace=True)
-#     train = reduce_mem_usage(train)
-#     test = reduce_mem_usage(test)
+
     y = train['LOCATION'].apply(lambda x: trfdct[x])
     X = train
     X.replace([np.inf, -np.inf], np.nan, inplace=True)
@@ -294,7 +284,6 @@ if __name__ == "__main__":
     X = np.ascontiguousarray(X)
     
     
-#     elapsed_time_df = pd.DataFrame(columns=["model_name", "training_time", ""])
     models, names = get_models()
     results = defaultdict(lambda: defaultdict(int))
     scoring = {
@@ -314,13 +303,11 @@ if __name__ == "__main__":
             if names[i] not in ["CAT", "CAT-XGB-LGB", "LGB-CAT", "RFC-CAT", "NB", "SVM"]:
                 scores = cross_validate(models[i], X, y, scoring=scoring, cv=cv, n_jobs=-1)
             if names[i] == "SVM":
-#                 print("geldi yine")
                 sc={
                'kappa': make_scorer(cohen_kappa_score),
                'acc': 'accuracy',
                'f1_m': 'f1_macro',
                'f1_w': 'f1_weighted',
-#                'auc_ovr': 'roc_auc_ovr',
               }
                 scores = cross_validate(models[i], X, y, scoring=sc, cv=cv, n_jobs=-1)
             else:
@@ -418,57 +405,53 @@ if __name__ == "__main__":
     names2 = ['SVMP','RFC','XGB','LGBM','CAT','CAT-XGB-LGB','KNN','ANN','LDA','NB',]
     plt.figure(figsize=(16,9))
     fig = plt.figure()
-    #fig.suptitle('Accuracy Comparison')
-    ax1 = fig.add_subplot(221)
+    fig.suptitle('Accuracy Comparison')
+    ax = fig.add_subplot(111)
     # plt.yticks(yticks)
-    plt.boxplot(acc,showfliers=False,vert=False,autorange=True)
+    plt.boxplot(acc)
     # ax.set_yticks(yticks)
-    ax1.text(0.95, 0.7, 'A', verticalalignment='bottom', horizontalalignment='left', fontweight='bold', fontsize=15)
-    ax1.set_yticklabels(names)
-    ax1.xaxis.set_major_formatter(FormatStrFormatter('%.2f'))
-    ax1.set_xlim(0.65,1)
-    #plt.savefig('acc.svg')
-    #plt.show()
+    ax.set_xticklabels(names)
+    plt.savefig('tephra_results/scorefigs/acc.svg')
+    plt.show()
 
-    #plt.figure(figsize=(16,9))
-    #fig = plt.figure()
-    #fig.suptitle('F1-Weighted Score Comparison')
-    ax2 = fig.add_subplot(222)
-    plt.boxplot(f1_w,showfliers=False,vert=False,autorange=True)
-    #ax2.set(ylabel=None)
-    ax2.set_xlim(0.65,1)
-    ax2.text(0.98, 0.7, 'B', verticalalignment='bottom', horizontalalignment='left', fontweight='bold', fontsize=15)
+    plt.figure(figsize=(16,9))
+    fig = plt.figure()
+    fig.suptitle('F1-macro score Comparison')
+    ax = fig.add_subplot(111)
+    plt.boxplot(f1_m)
     # ax.set_yticks(yticks)
-    ax2.set_yticklabels(names)
-    ax2.xaxis.set_major_formatter(FormatStrFormatter('%.2f'))
-    #plt.savefig('f1-w.svg')
-    #plt.show()
+    ax.set_xticklabels(names)
+    plt.savefig('tephra_results/scorefigs/f1-m.svg')
+    plt.show()
 
-    #plt.figure(figsize=(16,9))
-    #fig = plt.figure()
-    #fig.suptitle('ROC-AUC Score Comparison')
-    ax3 = fig.add_subplot(223)
-    plt.boxplot(auc,showfliers=False,vert=False,autorange=True)
+    plt.figure(figsize=(16,9))
+    fig = plt.figure()
+    fig.suptitle('F1-Weighted Score Comparison')
+    ax = fig.add_subplot(111)
+    plt.boxplot(f1_w)
     # ax.set_yticks(yticks)
-    ax3.set_yticklabels(names2)
-    ax3.set_xlim(0.85,1)
-    ax3.xaxis.set_major_formatter(FormatStrFormatter('%.2f'))
-    ax3.text(0.98, 0.86, 'C', verticalalignment='bottom', horizontalalignment='left', fontweight='bold', fontsize=15)
-    #plt.savefig('roc-auc.svg')
-    #plt.show()
+    ax.set_xticklabels(names)
+    plt.savefig('tephra_results/scorefigs/f1-w.svg')
+    plt.show()
     
-    #plt.figure(figsize=(16,9))
-    #fig = plt.figure()
-    #fig.suptitle('Kappa Score Comparison')
-    ax4 = fig.add_subplot(224)
-    plt.boxplot(kappa,showfliers=False,vert=False, autorange=True)
-    #ax4.set(ylabel=None)
-    #ax4.set_yticks(yticks)
-    ax4.set_yticklabels(names)
-    ax4.xaxis.set_major_formatter(FormatStrFormatter('%.2f'))
-    ax4.set_xlim(0.55,1)
-    ax4.text(0.98, 0.6, 'D', verticalalignment='bottom', horizontalalignment='left', fontweight='bold', fontsize=15)
-    plt.savefig('acc_test.svg')
+    plt.figure(figsize=(16,9))
+    fig = plt.figure()
+    fig.suptitle('Kappa Score Comparison')
+    ax = fig.add_subplot(111)
+    plt.boxplot(kappa)
+    # ax.set_yticks(yticks)
+    ax.set_xticklabels(names)
+    plt.savefig('tephra_results/scorefigs/kappa.svg')
+    plt.show()
+    
+    plt.figure(figsize=(16,9))
+    fig = plt.figure()
+    fig.suptitle('ROC-AUC Score Comparison')
+    ax = fig.add_subplot(111)
+    plt.boxplot(auc)
+    # ax.set_yticks(yticks)
+    ax.set_xticklabels(names2)
+    plt.savefig('tephra_results/scorefigs/roc-auc.svg')
     plt.show()
                                                                           
     print("####### CREATING CROSS-VALIDATION CONFUSION MATRICES #######\n")
